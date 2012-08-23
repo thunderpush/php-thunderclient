@@ -84,13 +84,15 @@ class Thunder
 	}
 
 	// builds function response based on the API response
-	protected function build_response($response, $field)
+	protected function build_response($response, $field=NULL)
 	{
-
-		
 		if ($response['status'] == 200)
 		{
 			return $response['data'][$field];
+		}
+		else if (is_null($field) && $response['status'] == 204)
+		{
+			return true;
 		}
 		else
 		{
@@ -130,5 +132,12 @@ class Thunder
 		$response = $this->make_request('GET', 
 			$this->make_url('users', $userid));
 		return $this->build_response($response, 'online');
+	}
+
+	public function disconnect_user($userid)
+	{
+		$response = $this->make_request('DELETE', 
+			$this->make_url('users', $userid));
+		return $this->build_response($response);
 	}
 }

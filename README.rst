@@ -20,3 +20,4 @@ Example
 	print $thunder->send_message_to_user("test", array("msg" => "hello!"));
 	print $thunder->send_message_to_channel("test", array("msg" => "hello!"));
 	print $thunder->is_user_online("test");
+	print $thunder->disconnect_user("test");
