@@ -1,143 +1,147 @@
 <?php
 
+/*
+ * This file is part of the Thunderpush package.
+ *
+ * (c) Krzysztof Jagiełło <https://github.com/kjagiello>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Guzzle\Http\Client;
+
 class Thunder
 {
-	protected static $API_VERSION = '1.0.0';
-	protected static $API_URL = '/api/%s/%s/%s/';
+	const API_VERSION = '1.0.0';
+	const API_URL = '/api/%s/%s/%s/';
 
 	protected $apikey;
 	protected $apisecret;
 	protected $host;
 
-	public function __construct($apikey, $apisecret, $host, $port=80)
+	/**
+	 * @var $client Guzzle\Http\Client Guzzle client
+	 */
+	protected $client;
+
+	public function __construct($apikey, $apisecret, $host, $port = 80, $https = false)
 	{
 		$this->apikey = $apikey;
 		$this->apisecret = $apisecret;
-		$this->host = sprintf('http://%s:%d', $host, $port);
+		$this->client = new Client(($https === true ? 'https://' : 'http://') . $host . ':' . $port);
+
+		$this->client->setDefaultOption('headers', array(
+			'Content-Type' => 'application/json',
+			'X-Thunder-Secret-Key' => $this->apisecret
+		));
 	}
 
 	protected function make_url($command)
 	{
 		$arguments = array_slice(func_get_args(), 1);
 
-
-		$url = sprintf(self::$API_URL, self::$API_VERSION, $this->apikey, 
+		$url = sprintf(self::API_URL, self::API_VERSION, $this->apikey, 
 			$command);
 
-		if ($arguments)
-		{
+		if ($arguments) {
 			$url .= implode('/', $arguments) . '/';;
 		}
 
 		return $url;
 	}
 
-	protected function make_request($method, $url, $data=NULL)
+	protected function make_request($method, $url, $data = NULL)
 	{
-		$ch = curl_init();
-
-		// let curl_exec return the response
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-		// set up the URL of the request
-		curl_setopt($ch, CURLOPT_URL, $this->host . $url);
-
-		// set up the headers
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-			'Content-Type: application/json',
-			'X-Thunder-Secret-Key: ' . $this->apisecret,
-		));
+		$url = call_user_func_array(array($this, 'make_url'), $url);
 
 		// set the request method
-		switch ($method)
-		{
+		switch ($method) {
 			case 'GET':
 				// do nothing, GET is the default request method
+				$request = $this->client->get($url);
 				break;
 			case 'POST':
-				curl_setopt($ch, CURLOPT_POST, 1);
-				curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+				$request = $this->client->post($url, array(), json_encode($data));
+				break;
+			case 'DELETE':
+				$request = $this->client->delete($url);
 				break;
 			default:
-				die('Unsupported request method.');
+				throw new \UnsupportedMethodException('Unsupported request method: ' . $method);
 				return;
 		}
 
-		$response = curl_exec($ch);
-		$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-		if ($status == 200)
-		{
-			if ($response)
-			{
-				$response = json_decode($response, true);
-			}
+		$return = array(
+			'data' => array(),
+			'status' => 500
+		);
+		try {
+			$response = $request->send();
+			$return['data'] = $response->json();
+			$return['status'] = $response->getStatusCode();
 		}
-		else
-		{
-			$response = array();
+		catch(\RequestException $e) {
+			$return['status'] = $e->getStatusCode();
+			$return['exception'] = $e;
+		}
+		catch(\Exception $e) {
+			$return['exception'] = $e;
 		}
 
-		curl_close($ch);
-
-		return array('status' => $status, 'data' => $response);
+		return $return;
 	}
 
 	// builds function response based on the API response
-	protected function build_response($response, $field=NULL)
-	{
-		if ($response['status'] == 200)
-		{
+	protected function build_response($response, $field = NULL) {
+		if ($response['status'] == 200) {
 			return $response['data'][$field];
 		}
-		else if (is_null($field) && $response['status'] == 204)
-		{
+		else if (is_null($field) && $response['status'] == 204) {
 			return true;
 		}
-		else
-		{
+		else {
 			return NULL;
 		}
 	}
 
 	public function get_user_count()
 	{
-		$response = $this->make_request('GET', $this->make_url('users'));
+		$response = $this->make_request('GET', array('users'));
 		return $this->build_response($response, 'count');
 	}
 
 	public function get_users_in_channel($channel)
 	{
-		$response = $this->make_request('GET', 
-			$this->make_url('channels', $channel));
+		$response = $this->make_request('GET', array('channels', $channel));
 		return $this->build_response($response, 'users');
 	}
 
 	public function send_message_to_user($userid, $message)
 	{
-		$response = $this->make_request('POST', 
-			$this->make_url('users', $userid), $message);
+		$response = $this->make_request('POST', array('users', $userid), $message);
 		return $this->build_response($response, 'count');
 	}
 
 	public function send_message_to_channel($channel, $message)
 	{
-		$response = $this->make_request('POST', 
-			$this->make_url('channels', $channel), $message);
+		$response = $this->make_request('POST', array('channels', $channel), $message);
 		return $this->build_response($response, 'count');
 	}
 
 	public function is_user_online($userid)
 	{
-		$response = $this->make_request('GET', 
-			$this->make_url('users', $userid));
+		$response = $this->make_request('GET', array('users', $userid));
 		return $this->build_response($response, 'online');
 	}
 
 	public function disconnect_user($userid)
 	{
-		$response = $this->make_request('DELETE', 
-			$this->make_url('users', $userid));
+		$response = $this->make_request('DELETE', array('users', $userid));
 		return $this->build_response($response);
 	}
 }
+
+/** Exceptions **/
+
+class UnsupportedMethodException extends \Exception {}
