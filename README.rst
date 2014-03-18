@@ -2,6 +2,9 @@
 Thunderpush client for PHP
 --------------------------
 
+.. image:: https://travis-ci.org/thunderpush/php-thunderclient.png?branch=master
+	:target: https://travis-ci.org/thunderpush/php-thunderclient
+
 A PHP library for sending messages to the `Thunderpush <https://github.com/thunderpush/thunderpush>`_ server.
 
 Example
