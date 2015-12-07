@@ -1,7 +1,7 @@
 {
     "name": "thunderpush/php-thunderclient",
     "description": "A PHP library for sending messages to Thunderpush server.",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "keywords": ["thunderpush", "push", "beacon", "pubsub"],
     "license": "BSD-3-Clause",
     "homepage": "https://github.com/thunderpush/php-thunderclient",
@@ -12,7 +12,7 @@
         }
     ],
     "require": {
-        "guzzle/guzzle": "~3.0"
+        "guzzlehttp/guzzle": "~6.0"
     },
     "autoload": {
         "psr-0": {
