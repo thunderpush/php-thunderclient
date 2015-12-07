@@ -26,25 +26,19 @@ class Thunder
 	 */
 	protected $client;
 
-	public function __construct($apikey, $apisecret, $host, $port = 80, $https = false, $handler = null)
+	public function __construct($apikey, $apisecret, $host, $port = 80, $https = false)
 	{
 		$this->apikey = $apikey;
 		$this->apisecret = $apisecret;
 
 		$proto = $https === true ? 'https' : 'http';
-		$opts = array(
+		$this->client = new Client(array(
 			'base_uri' =>  $proto . '://' . $host . ':' . $port . '/',
 			'headers' => array(
 				'Content-Type' => 'application/json',
 				'X-Thunder-Secret-Key' => $this->apisecret
 			)
-		);
-
-		if ($handler) {
-			$opts['handler'] = $handler;
-		}
-
-		$this->client = new Client($opts);
+		));
 	}
 
 	protected function make_url($command)
@@ -74,14 +68,15 @@ class Thunder
 		switch ($method) {
 			case 'GET':
 				// do nothing, GET is the default request method
-				$request = new Request('GET', $url);
+				$request = $this->client->createRequest('GET', $url);
 				break;
 			case 'POST':
-				$request = new Request('POST', $url, array(),
-									   json_encode($data));
+				$request = $this->client->createRequest('POST', $url, array(
+					'body' => json_encode($data)
+				));
 				break;
 			case 'DELETE':
-				$request = new Request('DELETE', $url);
+				$request = $this->client->createRequest('DELETE', $url);
 				break;
 			default:
 				throw new \UnsupportedMethodException(

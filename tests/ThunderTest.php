@@ -10,28 +10,27 @@
  */
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Subscriber\Mock;
+use GuzzleHttp\Message\Response;
 
 class ThunderTest extends \PHPUnit_Framework_TestCase
 {
 
     public function setup() {
-        $this->mock = new MockHandler();
+        $this->mock = new Mock();
         $this->key = 'key';
         $this->secret = 'secret';
         $this->host = 'localhost';
         $this->port = 80;
         $this->https = false;
         $this->thunder = new Thunder(
-            $this->key, $this->secret, $this->host, $this->port, $this->https,
-            HandlerStack::create($this->mock)
+            $this->key, $this->secret, $this->host, $this->port, $this->https
         );
 
         $property = new \ReflectionProperty('Thunder', 'client');
         $property->setAccessible(true);
         $this->client = $property->getValue($this->thunder);
+        $this->client->getEmitter()->attach($this->mock);
     }
 
     /**
@@ -59,21 +58,21 @@ class ThunderTest extends \PHPUnit_Framework_TestCase
         $method = new \ReflectionMethod('Thunder', 'make_request');
         $method->setAccessible(true);
 
-        $this->mock->append(new Response(200));
+        $this->mock->addResponse(new Response(200));
         $actual = $method->invokeArgs($this->thunder, array('GET', array('foo', 'bar')));
         $this->assertEquals(array(
             'status' => 200,
             'data' => array()
         ), $actual);
 
-        $this->mock->append(new Response(200));
+        $this->mock->addResponse(new Response(200));
         $actual = $method->invokeArgs($this->thunder, array('POST', array('foo', 'bar'), array('foo' => 'bar')));
         $this->assertEquals(array(
             'status' => 200,
             'data' => array()
         ), $actual);
 
-        $this->mock->append(new Response(200));
+        $this->mock->addResponse(new Response(200));
         $actual = $method->invokeArgs($this->thunder, array('DELETE', array('foo', 'bar')));
         $this->assertEquals(array(
             'status' => 200,
@@ -81,7 +80,7 @@ class ThunderTest extends \PHPUnit_Framework_TestCase
         ), $actual);
 
         $this->setExpectedException('UnsupportedMethodException');
-        $this->mock->append(new Response(200));
+        $this->mock->addResponse(new Response(200));
         $actual = $method->invokeArgs($this->thunder, array('UNSUPPORTED_METHOD', array('foo', 'bar')));
     }
 
